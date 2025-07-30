@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guide Interactif : Votre Destination sur la Costa Blanca</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals (Stone, Amber) with Teal Accent -->
+    <!-- Application Structure Plan: A dashboard-style SPA. Starts with the top recommendation (Calp) and an overall ranking chart. The core is an interactive radar chart for multi-criteria comparison. Users can click on cities or criteria to dynamically filter the visualizations and view detailed qualitative information in dedicated cards. This structure prioritizes quick answers (the ranking) while enabling deep, user-driven exploration, which is more engaging and useful than a static report format. -->
+    <!-- Visualization & Content Choices:
+        - Overall Ranking: Report's bar chart -> Goal: Quick summary -> Viz: Horizontal Bar Chart (Chart.js) -> Interaction: Hover for scores -> Justification: Familiar, clear, direct.
+        - Detailed Comparison: Report's table data -> Goal: Compare cities across all criteria -> Viz: Radar Chart (Chart.js) -> Interaction: Click to highlight & show details -> Justification: High "wow" factor, great for multi-variate comparison.
+        - Qualitative Info: Report's table text -> Goal: Provide in-depth descriptions -> Viz: HTML cards with Unicode icons -> Interaction: Dynamically updated on city selection -> Justification: Clean, scannable, and organized.
+        - New Feature: AI-powered activity generation using Gemini API. Goal: Provide personalized activity suggestions. Viz: Text output in a dedicated section. Interaction: Button click to trigger AI call. Justification: Adds practical value and leverages LLM capabilities.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fdfcf9;
+            color: #374151;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+                max-height: 500px;
+            }
+        }
+        .section-title {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #115e59;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .section-intro {
+            max-width: 3xl;
+            margin: 0 auto 2rem auto;
+            text-align: center;
+            color: #4b5563;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .btn-primary {
+            background-color: #0d9488;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #0f766e;
+        }
+        .btn-secondary {
+            background-color: #f0fdfa;
+            color: #115e59;
+            border-color: #ccfbf1;
+        }
+        .btn-secondary.active, .btn-secondary:hover {
+            background-color: #ccfbf1;
+            border-color: #5eead4;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            padding: 1.5rem;
+            transition: all 0.3s ease-in-out;
+        }
+        .print-only { display: none; }
+        @media print {
+            body { font-size: 10pt; }
+            .no-print { display: none; }
+            .print-only { display: block; }
+            .card { box-shadow: none; border: 1px solid #e5e7eb; }
+            .chart-container {
+              page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-teal-800 mb-4">Votre Destination Idéale sur la Costa Blanca</h1>
+            <p class="text-lg text-gray-600 max-w-3xl mx-auto">Un guide interactif pour vous aider à choisir les vacances parfaites pour votre famille.</p>
+        </header>
+
+        <section id="recommendation" class="mb-16">
+            <div class="card text-center bg-teal-50 border border-teal-200">
+                <h2 class="text-2xl font-bold text-teal-700 mb-2">Notre Recommandation Principale : Calp</h2>
+                <p class="text-gray-700 mb-6">Après analyse de tous vos critères, **Calp** se révèle être le choix optimal. Cette ville offre le meilleur équilibre entre des plages magnifiques adaptées aux enfants, une ambiance familiale et sécurisée, et des animations estivales gratuites.</p>
+                <div class="chart-container mx-auto h-64 sm:h-80">
+                    <canvas id="rankingChart"></canvas>
+                </div>
+                <p class="mt-4 text-sm text-gray-500">Ce graphique montre le score global de chaque ville basé sur l'adéquation à l'ensemble de vos critères. Calp se détache comme la destination la plus complète.</p>
+            </div>
+        </section>
+
+        <section id="comparison" class="mb-16">
+            <h2 class="section-title">Comparatif Détaillé des Villes</h2>
+            <p class="section-intro">Utilisez le graphique radar ci-dessous pour comparer visuellement les points forts de chaque ville. Cliquez sur le nom d'une ville dans la légende pour la mettre en évidence et afficher ses détails spécifiques. C'est un excellent moyen de voir comment les villes se mesurent les unes aux autres sur les critères qui comptent le plus pour vous.</p>
+            
+            <div class="card">
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="details" class="mb-16">
+             <h2 class="section-title">Zoom sur les Destinations</h2>
+             <p class="section-intro">Ici, vous trouverez les informations détaillées pour la ville que vous avez sélectionnée. Nous avons mis en avant **Calp** par défaut, mais vous pouvez explorer les autres villes en cliquant sur leurs noms dans le graphique ci-dessus pour voir pourquoi elles pourraient aussi être un bon choix, ou non, pour votre famille.</p>
+            <div id="details-container" class="card">
+            </div>
+        </section>
+
+        <footer class="text-center text-gray-500 text-sm mt-12 no-print">
+            <p>Rapport interactif généré pour faciliter votre planification de voyage.</p>
+        </footer>
+
+    </div>
+
+    <script>
+        const cityData = {
+            "Calp": {
+                scores: { "Hébergement": 5, "Plages": 5, "Ambiance": 5, "Animations": 5, "Restauration": 5 },
+                total: 25,
+                color: 'rgba(13, 148, 136, 0.8)',
+                borderColor: 'rgba(13, 148, 136, 1)',
+                details: {
+                    "🏨 Hébergement": "Excellentes options d'hôtels 4 étoiles et de nombreuses villas/appartements privés avec piscine, très adaptés aux familles.",
+                    "🏖️ Plages": "Plages principales (Arenal-Bol, La Fossa) avec sable fin, pente douce, eaux calmes et cristallines, idéales pour les enfants. Vent léger à modéré.",
+                    "👨‍👩‍👧‍👦 Ambiance & Sécurité": "Ambiance très agréable et familiale, non excessivement festive. La sécurité nocturne est bonne, renforcée par l'atmosphère conviviale.",
+                    "🎉 Animations": "La Fiesta 'Virgen de las Nieves' (août) offre de nombreux événements publics gratuits : feux d'artifice spectaculaires, concerts, DJ sets, et jeux pour enfants.",
+                    "🍽️ Restauration": "Large choix de restaurants familiaux avec des prix raisonnables, y compris des menus du jour très abordables."
+                }
+            },
+            "Jávea": {
+                scores: { "Hébergement": 4, "Plages": 5, "Ambiance": 4, "Animations": 3, "Restauration": 4 },
+                total: 20,
+                color: 'rgba(59, 130, 246, 0.6)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                details: {
+                    "🏨 Hébergement": "Bons hôtels 4 étoiles et locations privées de qualité (villas avec piscine, appartements).",
+                    "🏖️ Plages": "Playa del Arenal : sable fin, en forme de fer à cheval, pente douce, eaux claires, parfaite pour les familles.",
+                    "👨‍👩‍👧‍👦 Ambiance & Sécurité": "Ambiance plus élégante et calme. Bonne sécurité. Moins d'animation nocturne intense, ce qui peut être un avantage pour la tranquillité.",
+                    "🎉 Animations": "Animations présentes mais plus discrètes. Le Jazz Festival en août propose des concerts gratuits.",
+                    "🍽️ Restauration": "Bonnes options familiales. La ville est aussi connue pour des restaurants plus haut de gamme."
+                }
+            },
+            "Dénia": {
+                scores: { "Hébergement": 4, "Plages": 4, "Ambiance": 4, "Animations": 4, "Restauration": 5 },
+                total: 21,
+                color: 'rgba(234, 88, 12, 0.6)',
+                borderColor: 'rgba(234, 88, 12, 1)',
+                details: {
+                    "🏨 Hébergement": "Hôtels 4 étoiles disponibles et locations privées avec piscine et vue mer.",
+                    "🏖️ Plages": "Las Marinas et Els Molins : sable fin, eaux peu profondes et calmes, idéales pour les familles.",
+                    "👨‍👩‍👧‍👦 Ambiance & Sécurité": "Ville plus grande avec une ambiance culturelle et festive présente mais généralement pas excessive. La sécurité est bonne.",
+                    "🎉 Animations": "Fêtes des Maures et Chrétiens (mi-août) avec défilés et un grand feu d'artifice au port.",
+                    "🍽️ Restauration": "Nombreuses options de restaurants familiaux à prix raisonnables, notamment des tapas et cuisine locale."
+                }
+            },
+            "Moraira": {
+                scores: { "Hébergement": 4, "Plages": 5, "Ambiance": 5, "Animations": 2, "Restauration": 4 },
+                total: 20,
+                color: 'rgba(139, 92, 246, 0.6)',
+                borderColor: 'rgba(139, 92, 246, 1)',
+                details: {
+                    "🏨 Hébergement": "Hôtels boutique 4 étoiles et une abondance de villas privées avec piscine, très axées sur les familles.",
+                    "🏖️ Plages": "Playa del Portet et Platgetes : sable fin, pente douce, eaux cristallines, abritées du vent, très familiales.",
+                    "👨‍👩‍👧‍👦 Ambiance & Sécurité": "Très calme et paisible, idéale pour la détente en famille. Excellente sécurité.",
+                    "🎉 Animations": "Animations très limitées en août. La Festa del Moscatel (fin août) est plus axée sur la dégustation et les danses locales.",
+                    "🍽️ Restauration": "Plusieurs restaurants familiaux avec des prix raisonnables, bien que la ville ait une réputation plus 'haut de gamme'."
+                }
+            },
+            "Benidorm": {
+                scores: { "Hébergement": 3, "Plages": 4, "Ambiance": 2, "Animations": 3, "Restauration": 5 },
+                total: 17,
+                color: 'rgba(239, 68, 68, 0.6)',
+                borderColor: 'rgba(239, 68, 68, 1)',
+                details: {
+                    "🏨 Hébergement": "Se baser à La Cala de Finestrat offre des hôtels et locations familiales avec piscine, plus calmes que Benidorm centre.",
+                    "🏖️ Plages": "Cala de Finestrat est une petite plage urbaine familiale. Les plages de Benidorm (Levante, Poniente) sont vastes mais très fréquentées.",
+                    "👨‍👩‍👧‍👦 Ambiance & Sécurité": "Benidorm est très animée, potentiellement trop festive et alcoolisée. Cala de Finestrat est une alternative plus calme et familiale.",
+                    "🎉 Animations": "Concerts live à Aiguera Park. Les grands festivals sont en hiver. Feu d'artifice spectaculaire à Altea (proche) le 10 août.",
+                    "🍽️ Restauration": "Très grande variété de restaurants à prix raisonnables, allant des options locales aux cuisines internationales."
+                }
+            }
+        };
+
+        const labels = Object.keys(cityData.Calp.scores);
+        const cities = Object.keys(cityData);
+
+        async function generateActivities(cityName) {
+            const activitiesContainer = document.getElementById('generated-activities');
+            const generateButton = document.getElementById('generate-activities-btn');
+
+            activitiesContainer.innerHTML = `<p class="text-gray-500 text-center mt-4">Génération en cours... ✨</p>`;
+            generateButton.disabled = true;
+
+            let chatHistory = [];
+            const prompt = `Génère une liste de 3 à 5 activités familiales pour une famille avec deux adultes (40 ans), un enfant de 5 ans et un enfant de 11 ans, prévoyant un séjour de 2 semaines à ${cityName}, Espagne. Concentre-toi sur des activités adaptées aux enfants, des options de restauration raisonnables et des animations publiques gratuites si possible. Formate la réponse comme une liste à puces.`;
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            const payload = { contents: chatHistory };
+            const apiKey = ""; // If you want to use models other than gemini-2.5-flash-preview-05-20 or imagen-3.0-generate-002, provide an API key here. Otherwise, leave this as-is.
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            let retries = 0;
+            const maxRetries = 5;
+            const baseDelay = 1000; // 1 second
+
+            while (retries < maxRetries) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.status === 429) { // Too Many Requests
+                        const delay = baseDelay * Math.pow(2, retries) + Math.random() * 1000; // Exponential backoff with jitter
+                        retries++;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue; // Retry
+                    }
+
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        activitiesContainer.innerHTML = `<h4 class="font-bold text-lg text-gray-800 mt-6 mb-2">Suggestions d'activités ✨</h4><div class="prose max-w-none">${text}</div>`;
+                    } else {
+                        activitiesContainer.innerHTML = `<p class="text-red-500 mt-4">Impossible de générer des activités pour le moment. Veuillez réessayer.</p>`;
+                    }
+                    break; // Success, exit loop
+                } catch (error) {
+                    console.error('Erreur lors de l\'appel à l\'API Gemini:', error);
+                    activitiesContainer.innerHTML = `<p class="text-red-500 mt-4">Une erreur est survenue lors de la génération. Veuillez vérifier votre connexion ou réessayer.</p>`;
+                    break; // Exit loop on critical error
+                } finally {
+                    generateButton.disabled = false;
+                }
+            }
+            if (retries === maxRetries) {
+                activitiesContainer.innerHTML = `<p class="text-red-500 mt-4">La génération d'activités a échoué après plusieurs tentatives. Veuillez réessayer plus tard.</p>`;
+            }
+        }
+
+        function updateDetails(cityName) {
+            const container = document.getElementById('details-container');
+            const data = cityData[cityName];
+            if (!data) return;
+
+            let detailsHtml = `<h3 class="text-2xl font-bold mb-4" style="color: ${data.borderColor};">${cityName}</h3>`;
+            detailsHtml += '<div class="space-y-4">';
+
+            for (const [criterion, description] of Object.entries(data.details)) {
+                detailsHtml += `
+                    <div>
+                        <h4 class="font-bold text-lg text-gray-800">${criterion}</h4>
+                        <p class="text-gray-600">${description}</p>
+                    </div>
+                `;
+            }
+            detailsHtml += '</div>';
+            detailsHtml += `
+                <div class="mt-8 text-center">
+                    <button id="generate-activities-btn" class="btn btn-primary" onclick="generateActivities('${cityName}')">
+                        ✨ Générer des Activités Familiales
+                    </button>
+                    <div id="generated-activities" class="mt-4 text-left p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <p class="text-gray-600">Cliquez sur le bouton ci-dessus pour obtenir des suggestions d'activités personnalisées pour votre famille.</p>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = detailsHtml;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const radarCtx = document.getElementById('radarChart').getContext('2d');
+            const rankingCtx = document.getElementById('rankingChart').getContext('2d');
+
+            const radarChart = new Chart(radarCtx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: cities.map(city => ({
+                        label: city,
+                        data: Object.values(cityData[city].scores),
+                        backgroundColor: cityData[city].color,
+                        borderColor: cityData[city].borderColor,
+                        borderWidth: 2,
+                        pointBackgroundColor: cityData[city].borderColor,
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: cityData[city].borderColor
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    size: 14
+                                }
+                            },
+                            onClick: (e, legendItem, legend) => {
+                                const index = legendItem.datasetIndex;
+                                const ci = legend.chart;
+                                const meta = ci.getDatasetMeta(index);
+                                // Toggle visibility
+                                meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                                // Update details for the clicked city
+                                updateDetails(legendItem.text);
+                                ci.update();
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.r !== null) {
+                                        label += context.parsed.r + ' / 5';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        r: {
+                            angleLines: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            pointLabels: {
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: '#4b5563'
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 5,
+                            ticks: {
+                                stepSize: 1,
+                                backdropColor: 'rgba(255, 255, 255, 0.75)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            const sortedCities = cities.sort((a, b) => cityData[b].total - cityData[a].total);
+
+            const rankingChart = new Chart(rankingCtx, {
+                type: 'bar',
+                data: {
+                    labels: sortedCities,
+                    datasets: [{
+                        label: 'Score Global',
+                        data: sortedCities.map(city => cityData[city].total),
+                        backgroundColor: sortedCities.map(city => cityData[city].color),
+                        borderColor: sortedCities.map(city => cityData[city].borderColor),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Classement Général des Destinations',
+                            font: {
+                                size: 16
+                            },
+                            color: '#374151'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                           grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            updateDetails('Calp');
+        });
+
+    </script>
+</body>
+</html>
